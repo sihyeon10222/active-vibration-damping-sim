@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>능동 진동 저감 시뮬레이터</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: system-ui, -apple-system, "Malgun Gothic", sans-serif;
+      color: #142338;
+      background: #f3f6fa;
+      font-synthesis: none;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; }
+    main { max-width: 1120px; margin: auto; padding: 36px 24px; }
+    header { max-width: 760px; margin-bottom: 24px; }
+    h1, h2, p { margin: 0; }
+    h1 { font-size: clamp(1.65rem, 4.2vw, 2.55rem); letter-spacing: -.045em; line-height: 1.18; }
+    h2 { font-size: 1.08rem; letter-spacing: -.025em; }
+    p { line-height: 1.55; }
+    .eyebrow { color: #0f766e; font-size: .83rem; font-weight: 750; margin-bottom: 7px; }
+    .intro { margin-top: 10px; color: #475569; }
+    .panel { background: #fff; border: 1px solid #dce4ed; border-radius: 14px; padding: 18px; min-width: 0; }
+    .heading, .control-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; margin-top: 14px; }
+    .control-title { font-weight: 650; }
+    output { color: #0f766e; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    input[type="range"] { display: block; width: 100%; margin: 7px 0 3px; min-height: 28px; accent-color: #0f766e; }
+    .bounds { display: flex; justify-content: space-between; gap: 8px; color: #475569; font-size: .79rem; }
+    button { background: #fff; border: 1px solid #aab8c7; border-radius: 8px; color: #142338; min-height: 36px; padding: 5px 10px; font: inherit; font-size: .84rem; cursor: pointer; }
+    button:hover { background: #f0f7f6; }
+    :focus-visible { outline: 3px solid #0f766e; outline-offset: 3px; }
+    #metrics-title { margin-top: 18px; }
+    #metrics-title small { color: #475569; font-size: .8rem; font-weight: 500; margin-left: 4px; }
+    .metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin: 9px 0 16px; }
+    .metric { border-top: 4px solid var(--series); }
+    .metric h3 { font-size: .93rem; margin: 0; }
+    .value { margin-top: 4px; font-size: clamp(1.1rem, 3.3vw, 1.85rem); font-weight: 750; font-variant-numeric: tabular-nums; }
+    .value small { color: #475569; font-weight: 500; font-size: .8rem; white-space: nowrap; }
+    .comparison { color: #475569; font-size: .83rem; }
+    .charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .caption, .note { color: #475569; font-size: .86rem; }
+    .caption { margin: 5px 0 6px; }
+    svg { display: block; width: 100%; height: 216px; overflow: hidden; }
+    svg text { fill: #475569; font-size: 11px; }
+    .legend { display: flex; flex-wrap: wrap; justify-content: center; column-gap: 15px; row-gap: 6px; padding: 0; margin: 0 0 9px; list-style: none; color: #334155; font-size: .84rem; }
+    .sample { display: inline-block; width: 23px; border-top: 2px solid var(--series); vertical-align: middle; margin-right: 5px; }
+    .sample.pid { border-top-style: dashed; }
+    .sample.damping { border-top-style: dotted; }
+    .note { margin-top: 15px; }
+    @media (max-width: 700px) {
+      .charts { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 490px) {
+      main { padding: 24px 12px; }
+      .panel { padding: 13px; }
+      .controls { grid-template-columns: 1fr; gap: 11px; }
+      .metrics { gap: 6px; }
+      .metric { padding: 10px 7px; }
+      .metric h3, .comparison { font-size: .76rem; }
+      .value small { font-size: .69rem; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">물리학과 AI 코딩 · 실험 04</p>
+      <h1>능동 진동 저감 시뮬레이터</h1>
+      <p class="intro">고유진동수 13.5 Hz인 상판에 사인파 힘을 가합니다. 외란 주파수와 진폭을 바꾸며 같은 조건에서 세 제어 방식의 응답을 비교할 수 있습니다.</p>
+    </header>
+
+    <section class="panel" aria-labelledby="settings-title">
+      <div class="heading">
+        <h2 id="settings-title">외란 설정</h2>
+        <button type="button" id="reset">기본값으로</button>
+      </div>
+      <div class="controls">
+        <div>
+          <div class="control-title"><label for="frequency">주파수</label><output id="frequency-value" for="frequency">13.5 Hz</output></div>
+          <input id="frequency" type="range" min="5" max="25" step="0.5" value="13.5">
+          <div class="bounds" aria-hidden="true"><span>5 Hz</span><span>25 Hz</span></div>
+        </div>
+        <div>
+          <div class="control-title"><label for="amplitude">힘의 진폭</label><output id="amplitude-value" for="amplitude">0.40 N</output></div>
+          <input id="amplitude" type="range" min="0.05" max="1.50" step="0.05" value="0.40">
+          <div class="bounds" aria-hidden="true"><span>0.05 N</span><span>1.50 N</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="metrics-title">
+      <h2 id="metrics-title">가속도 RMS <small>3–5초 구간</small></h2>
+      <div class="metrics">
+        <article class="panel metric" style="--series: #475569">
+          <h3>제어 OFF</h3>
+          <p class="value"><span id="rms-off">—</span> <small>m/s²</small></p>
+          <p class="comparison">비교 기준</p>
+        </article>
+        <article class="panel metric" style="--series: #b45309">
+          <h3>디지털 PID</h3>
+          <p class="value"><span id="rms-pid">—</span> <small>m/s²</small></p>
+          <p class="comparison" id="change-pid">—</p>
+        </article>
+        <article class="panel metric" style="--series: #0f766e">
+          <h3>감쇠 주입</h3>
+          <p class="value"><span id="rms-damping">—</span> <small>m/s²</small></p>
+          <p class="comparison" id="change-damping">—</p>
+        </article>
+      </div>
+    </section>
+
+    <ul class="legend" aria-label="그래프 범례">
+      <li><span class="sample" style="--series: #475569"></span>제어 OFF</li>
+      <li><span class="sample pid" style="--series: #b45309"></span>디지털 PID</li>
+      <li><span class="sample damping" style="--series: #0f766e"></span>감쇠 주입</li>
+    </ul>
+    <section class="charts" aria-label="시뮬레이션 그래프">
+      <section class="panel" aria-labelledby="acceleration-title">
+        <h2 id="acceleration-title">외란 작용 중 가속도</h2>
+        <p class="caption">3.8–4.2초의 파형을 확대했습니다.</p>
+        <svg id="acceleration-chart" role="img" aria-label="세 제어 방식의 시간에 따른 가속도 그래프"></svg>
+      </section>
+      <section class="panel" aria-labelledby="energy-title">
+        <h2 id="energy-title">외란 종료 후 기계적 에너지</h2>
+        <p class="caption">5초에 외란을 끕니다. 로그 눈금으로 에너지 변화를 비교합니다.</p>
+        <svg id="energy-chart" role="img" aria-label="외란을 끈 뒤 세 제어 방식의 시간에 따른 기계적 에너지 그래프"></svg>
+      </section>
+    </section>
+    <p class="note">질량 1 kg, 수동 감쇠 계수 3 N·s/m, 제어력 한계 ±0.8 N을 가정했습니다. 계산은 1 ms 간격의 4차 룽게–쿠타 방법을 사용합니다. 그래프와 RMS에는 운동 방정식에서 구한 가속도를 사용합니다.</p>
+    <noscript><p class="note">이 시뮬레이터를 사용하려면 브라우저에서 JavaScript를 켜세요.</p></noscript>
+  </main>
+
+  <script>
+    "use strict";
+
+    const MASS = 1;
+    const NATURAL_FREQUENCY = 13.5;
+    const SPRING = MASS * (2 * Math.PI * NATURAL_FREQUENCY) ** 2;
+    const DAMPING = 3;
+    const STEP = 0.001;
+    const DURATION = 8;
+    const FORCING_END = 5;
+    const RMS_START = 3;
+    const FORCE_LIMIT = 0.8;
+    const PID_KP = 800;
+    const PID_KI = 120;
+    const PID_KD = 7;
+    const ACTIVE_DAMPING = 12;
+    const DEFAULT_AMPLITUDE = 0.4;
+    const SERIES = [
+      { mode: "off", color: "#475569", dash: "" },
+      { mode: "pid", color: "#b45309", dash: "7 4" },
+      { mode: "damping", color: "#0f766e", dash: "2 4" },
+    ];
+
+    function acceleration(displacement, velocity, force) {
+      return (force - DAMPING * velocity - SPRING * displacement) / MASS;
+    }
+
+    function advance(displacement, velocity, forceStart, forceMiddle, forceEnd) {
+      const v1 = velocity;
+      const a1 = acceleration(displacement, v1, forceStart);
+      const v2 = velocity + STEP * a1 / 2;
+      const a2 = acceleration(displacement + STEP * v1 / 2, v2, forceMiddle);
+      const v3 = velocity + STEP * a2 / 2;
+      const a3 = acceleration(displacement + STEP * v2 / 2, v3, forceMiddle);
+      const v4 = velocity + STEP * a3;
+      const a4 = acceleration(displacement + STEP * v3, v4, forceEnd);
+      return [
+        displacement + STEP * (v1 + 2 * v2 + 2 * v3 + v4) / 6,
+        velocity + STEP * (a1 + 2 * a2 + 2 * a3 + a4) / 6,
+      ];
+    }
+
+    function limitForce(force) {
+      return Math.max(-FORCE_LIMIT, Math.min(FORCE_LIMIT, force));
+    }
+
+    function controlForce(mode, displacement, velocity, integral) {
+      if (mode === "off") return [0, integral];
+      if (mode === "damping") return [limitForce(-ACTIVE_DAMPING * velocity), integral];
+
+      const error = -displacement;
+      const proportionalDerivative = PID_KP * error - PID_KD * velocity;
+      const nextIntegral = integral + error * STEP;
+      const requested = proportionalDerivative + PID_KI * nextIntegral;
+      const applied = limitForce(requested);
+      // 포화 방향으로 오차가 쌓이는 동안 적분값을 유지한다.
+      if ((requested - applied) * error > 0) {
+        return [limitForce(proportionalDerivative + PID_KI * integral), integral];
+      }
+      return [applied, nextIntegral];
+    }
+
+    function simulate(mode, frequency, amplitude) {
+      const count = Math.round(DURATION / STEP) + 1;
+      const angularFrequency = 2 * Math.PI * frequency;
+      const disturbance = time => time < FORCING_END ? amplitude * Math.sin(angularFrequency * time) : 0;
+      const accelerationTrace = new Float64Array(count);
+      const energyTrace = new Float64Array(count);
+      let displacement = 0;
+      let velocity = 0;
+      let integral = 0;
+      let squaredAcceleration = 0;
+      let rmsSamples = 0;
+
+      for (let index = 0; index < count; index += 1) {
+        const time = index * STEP;
+        const [control, nextIntegral] = controlForce(mode, displacement, velocity, integral);
+        integral = nextIntegral;
+        const force = disturbance(time) + control;
+        const currentAcceleration = acceleration(displacement, velocity, force);
+        accelerationTrace[index] = currentAcceleration;
+        energyTrace[index] = (MASS * velocity ** 2 + SPRING * displacement ** 2) / 2;
+        if (time >= RMS_START && time < FORCING_END) {
+          squaredAcceleration += currentAcceleration ** 2;
+          rmsSamples += 1;
+        }
+        if (index < count - 1) {
+          [displacement, velocity] = advance(
+            displacement, velocity, force,
+            disturbance(time + STEP / 2) + control,
+            disturbance((index + 1) * STEP) + control,
+          );
+        }
+      }
+      return { accelerationTrace, energyTrace, rms: Math.sqrt(squaredAcceleration / rmsSamples) };
+    }
+
+    const frequencyInput = document.getElementById("frequency");
+    const amplitudeInput = document.getElementById("amplitude");
+    const accelerationChart = document.getElementById("acceleration-chart");
+    const energyChart = document.getElementById("energy-chart");
+    let traces;
+    let frame = 0;
+
+    function svgElement(name, attributes, content) {
+      const element = document.createElementNS("http://www.w3.org/2000/svg", name);
+      for (const [key, value] of Object.entries(attributes)) element.setAttribute(key, value);
+      if (content !== undefined) element.textContent = content;
+      return element;
+    }
+
+    function drawChart(svg, { from, to, minimum, maximum, xTicks, yTicks, yUnit, formatX, formatY, read, stride }) {
+      const width = svg.clientWidth;
+      const height = svg.clientHeight;
+      if (!width || !height) return;
+      const left = 49;
+      const right = width - 17;
+      const top = 21;
+      const bottom = height - 36;
+      const x = time => left + (time - from) / (to - from) * (right - left);
+      const y = value => bottom - (value - minimum) / (maximum - minimum) * (bottom - top);
+      svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      const elements = [svgElement("text", { x: left, y: 11 }, yUnit)];
+
+      for (const tick of yTicks) {
+        elements.push(svgElement("line", { x1: left, y1: y(tick), x2: right, y2: y(tick), stroke: "#e2e8f0" }));
+        elements.push(svgElement("text", { x: left - 8, y: y(tick) + 4, "text-anchor": "end" }, formatY(tick)));
+      }
+      elements.push(svgElement("path", { d: `M ${left} ${top} V ${bottom} H ${right}`, fill: "none", stroke: "#94a3b8" }));
+      for (const tick of xTicks) {
+        elements.push(svgElement("line", { x1: x(tick), y1: bottom, x2: x(tick), y2: bottom + 4, stroke: "#94a3b8" }));
+        elements.push(svgElement("text", { x: x(tick), y: bottom + 17, "text-anchor": "middle" }, formatX(tick)));
+      }
+      elements.push(svgElement("text", { x: (left + right) / 2, y: height - 3, "text-anchor": "middle" }, "시간 (s)"));
+
+      const start = Math.round(from / STEP);
+      const end = Math.round(to / STEP);
+      for (const { mode, color, dash } of SERIES) {
+        const points = [];
+        for (let index = start; index <= end; index += stride) {
+          points.push(`${x(index * STEP).toFixed(2)},${y(read(traces[mode], index)).toFixed(2)}`);
+        }
+        elements.push(svgElement("polyline", {
+          points: points.join(" "), fill: "none", stroke: color,
+          "stroke-width": 1.8, "stroke-dasharray": dash, "stroke-linecap": "round", "stroke-linejoin": "round",
+        }));
+      }
+      svg.replaceChildren(...elements);
+    }
+
+    function drawResults() {
+      if (!traces) return;
+      let accelerationPeak = 0;
+      let energyMin = Infinity;
+      let energyMax = -Infinity;
+      const logEnergy = (trace, index) => Math.log10(Math.max(1e-30, trace.energyTrace[index]));
+      for (const { mode } of SERIES) {
+        const trace = traces[mode];
+        for (let index = 3800; index <= 4200; index += 1) {
+          accelerationPeak = Math.max(accelerationPeak, Math.abs(trace.accelerationTrace[index]));
+        }
+        for (let index = 5000; index <= 8000; index += 1) {
+          const value = logEnergy(trace, index);
+          energyMin = Math.min(energyMin, value);
+          energyMax = Math.max(energyMax, value);
+        }
+      }
+
+      const accelerationLimit = Math.max(0.1, Math.ceil(accelerationPeak * 10) / 10);
+      drawChart(accelerationChart, {
+        from: 3.8, to: 4.2, minimum: -accelerationLimit, maximum: accelerationLimit,
+        xTicks: [3.8, 3.9, 4, 4.1, 4.2],
+        yTicks: [-accelerationLimit, -accelerationLimit / 2, 0, accelerationLimit / 2, accelerationLimit],
+        yUnit: "가속도 (m/s²)", formatX: tick => tick.toFixed(1), formatY: tick => String(Number(tick.toFixed(2))),
+        read: (trace, index) => trace.accelerationTrace[index], stride: 2,
+      });
+
+      const energyFloor = Math.floor(energyMin / 5) * 5;
+      const energyCeiling = Math.max(energyFloor + 5, Math.ceil(energyMax / 5) * 5);
+      const energyTicks = Array.from({ length: (energyCeiling - energyFloor) / 5 + 1 }, (_, index) => energyFloor + index * 5);
+      drawChart(energyChart, {
+        from: 5, to: 8, minimum: energyFloor, maximum: energyCeiling,
+        xTicks: [5, 6, 7, 8], yTicks: energyTicks,
+        yUnit: "에너지 (J, 로그)", formatX: String, formatY: tick => tick === 0 ? "1" : `1e${tick}`,
+        read: logEnergy, stride: 5,
+      });
+    }
+
+    function update() {
+      frame = 0;
+      const frequency = frequencyInput.valueAsNumber;
+      const amplitude = amplitudeInput.valueAsNumber;
+      document.getElementById("frequency-value").value = `${frequency.toFixed(1)} Hz`;
+      document.getElementById("amplitude-value").value = `${amplitude.toFixed(2)} N`;
+      frequencyInput.setAttribute("aria-valuetext", `${frequency.toFixed(1)} Hz`);
+      amplitudeInput.setAttribute("aria-valuetext", `${amplitude.toFixed(2)} N`);
+      traces = Object.fromEntries(SERIES.map(({ mode }) => [mode, simulate(mode, frequency, amplitude)]));
+
+      for (const { mode } of SERIES) {
+        const rms = traces[mode].rms;
+        document.getElementById(`rms-${mode}`).textContent = rms.toFixed(3);
+        if (mode !== "off") {
+          const change = (1 - rms / traces.off.rms) * 100;
+          const direction = change >= 0 ? "감소" : "증가";
+          document.getElementById(`change-${mode}`).textContent = `${Math.abs(change).toFixed(2)}% ${direction}`;
+        }
+      }
+      drawResults();
+    }
+
+    function queueUpdate() {
+      if (!frame) frame = requestAnimationFrame(update);
+    }
+
+    frequencyInput.addEventListener("input", queueUpdate);
+    amplitudeInput.addEventListener("input", queueUpdate);
+    document.getElementById("reset").addEventListener("click", () => {
+      frequencyInput.value = NATURAL_FREQUENCY;
+      amplitudeInput.value = DEFAULT_AMPLITUDE;
+      queueUpdate();
+    });
+    window.addEventListener("resize", drawResults);
+    update();
+  </script>
+</body>
+</html>
