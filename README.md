@@ -2,9 +2,13 @@
 
 스프링과 댐퍼로 지지한 상판에 고유진동수와 같은 13.5 Hz의 외란을 가하고, 제어를 끈 경우와 디지털 PID, 속도 비례 감쇠 주입을 비교했다. 외란이 작용하는 동일한 3–5초 구간에서 가속도 RMS는 **7.969 m/s²**에서 각각 **1.753 m/s²**와 **1.590 m/s²**로 줄었다. 입력과 센서 신호는 물리 모델에서 생성했다.
 
-## 브라우저에서 실행
+## 웹에서 바로 실행
 
-[HTML 파일 다운로드](https://github.com/sihyeon10222/active-vibration-damping-sim/releases/download/v1.0.0/vibration-simulator.html)에서 `vibration-simulator.html`을 받은 뒤 Mac이나 Windows에서 파일을 더블 클릭한다. Chrome, Edge, Safari 등 브라우저로 열며, 파일을 받은 뒤에는 인터넷 연결이나 Python 설치 없이 실행할 수 있다.
+[**능동 진동 저감 장치 시뮬레이터 열기**](https://sihyeon10222.github.io/active-vibration-damping-sim/)
+
+오프라인에서는 [HTML 파일](https://github.com/sihyeon10222/active-vibration-damping-sim/releases/download/v1.1.0/vibration-simulator.html)을 받아 실행할 수 있다.
+
+3D 장면에는 제어 OFF, 디지털 PID, 감쇠 주입 상판이 같은 시각에 계산된 변위만큼 움직인다. 상판과 스프링의 움직임을 60배 확대해 0.1배속으로 재생하고, 각 상판 위에는 확대 전 변위를 mm로 표시한다. **다시 보기**를 누르면 외란 작용 중인 3.6초부터 재생하고, 시간 막대로 0–8초 구간을 이동할 수 있다.
 
 외란의 주파수와 힘의 진폭을 조절하면 세 제어 방식의 가속도 RMS, 가속도 파형, 외란 종료 후 에너지 그래프가 갱신된다. **기본값으로**를 누르면 13.5 Hz와 0.40 N 조건으로 돌아간다. 정적 PNG와 요약 CSV는 [Python 실행 방법](#실행-및-재현)으로 재현할 수 있다.
 
@@ -74,6 +78,7 @@ python simulate.py --output-dir results
 2. 같은 외란을 유지한 채 PID와 감쇠 주입을 추가하고, RMS·에너지·힘 포화를 비교했다.
 3. 그래프와 요약 CSV를 재생성하는 명령을 만들고, 결과와 모델의 적용 조건을 정리했다.
 4. 외란 설정을 바꿔 결과를 비교할 수 있는 단일 HTML 시뮬레이터를 추가했다.
+5. 계산한 변위로 상판과 스프링을 움직여 세 제어 방식의 차이를 같은 시각에서 비교하도록 했다.
 
 단계별 요청과 확인 결과는 [프롬프트 기록](PROMPTS.md)에 정리했다.
 

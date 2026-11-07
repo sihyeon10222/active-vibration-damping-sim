@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>능동 진동 저감 시뮬레이터</title>
+  <title>능동 진동 저감 장치 시뮬레이터</title>
   <style>
     :root {
       color-scheme: light;
@@ -50,6 +50,52 @@
     .sample.pid { border-top-style: dashed; }
     .sample.damping { border-top-style: dotted; }
     .note { margin-top: 15px; }
+    .motion-panel {
+      margin-bottom: 14px;
+      color: #f1f5f9;
+      background: #111e2e;
+      border-color: #263c53;
+    }
+    .motion-panel .caption { color: #bdcddd; }
+    .motion-toolbar, .motion-actions, .motion-time {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .motion-toolbar { justify-content: space-between; }
+    .motion-time { font-size: .83rem; font-variant-numeric: tabular-nums; }
+    .motion-phase {
+      color: #b7e8df;
+      border: 1px solid #396665;
+      border-radius: 20px;
+      padding: 2px 8px;
+    }
+    .motion-panel button { color: #f1f5f9; background: #1e3349; border-color: #486581; }
+    .motion-panel button:hover { background: #294760; }
+    .motion-panel button:first-child { min-width: 74px; }
+    .motion-panel :focus-visible { outline-color: #79e2d2; }
+    .rigs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+    .rig {
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid #32485d;
+      border-radius: 10px;
+      background: radial-gradient(ellipse at 50% 25%, #233c54, #14263a 68%);
+    }
+    .rig-header {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 3px 8px;
+      align-items: baseline;
+      padding: 8px 11px 0;
+    }
+    .rig h3 { margin: 0; color: var(--motion-color); font-size: .91rem; }
+    .rig-value { color: #e1ebf4; font-size: .81rem; font-variant-numeric: tabular-nums; }
+    .rig canvas { display: block; width: 100%; height: clamp(94px, 17vw, 160px); }
+    .motion-panel input[type="range"] { accent-color: #6dd8c9; margin: 8px 0 0; }
+    .motion-caption { color: #bdcddd; font-size: .79rem; }
     @media (max-width: 700px) {
       .charts { grid-template-columns: 1fr; }
     }
@@ -61,6 +107,9 @@
       .metric { padding: 10px 7px; }
       .metric h3, .comparison { font-size: .76rem; }
       .value small { font-size: .69rem; }
+      .rigs { gap: 4px; }
+      .rig-header { padding: 6px 5px 0; }
+      .rig h3, .rig-value { font-size: .75rem; }
     }
   </style>
 </head>
@@ -68,9 +117,41 @@
   <main>
     <header>
       <p class="eyebrow">물리학과 AI 코딩 · 실험 04</p>
-      <h1>능동 진동 저감 시뮬레이터</h1>
+      <h1>능동 진동 저감 장치 시뮬레이터</h1>
       <p class="intro">고유진동수 13.5 Hz인 상판에 사인파 힘을 가합니다. 외란 주파수와 진폭을 바꾸며 같은 조건에서 세 제어 방식의 응답을 비교할 수 있습니다.</p>
     </header>
+
+    <section class="panel motion-panel" aria-labelledby="motion-title">
+      <div class="motion-toolbar">
+        <div>
+          <h2 id="motion-title">3D 상판 움직임 비교</h2>
+          <p class="caption">같은 외란을 받은 세 상판의 높이 변화를 비교합니다.</p>
+        </div>
+        <div class="motion-actions">
+          <button type="button" id="motion-play">재생</button>
+          <button type="button" id="motion-replay">다시 보기</button>
+        </div>
+      </div>
+      <div class="rigs">
+        <article class="rig" style="--motion-color: #b9cfdf">
+          <div class="rig-header"><h3>제어 OFF</h3><span class="rig-value" id="motion-off">0.00 mm</span></div>
+          <canvas id="rig-off" role="img" aria-label="제어를 끈 상판과 스프링의 3차원 모습"></canvas>
+        </article>
+        <article class="rig" style="--motion-color: #f5c681">
+          <div class="rig-header"><h3>디지털 PID</h3><span class="rig-value" id="motion-pid">0.00 mm</span></div>
+          <canvas id="rig-pid" role="img" aria-label="디지털 PID를 적용한 상판과 스프링의 3차원 모습"></canvas>
+        </article>
+        <article class="rig" style="--motion-color: #8ee2d3">
+          <div class="rig-header"><h3>감쇠 주입</h3><span class="rig-value" id="motion-damping">0.00 mm</span></div>
+          <canvas id="rig-damping" role="img" aria-label="감쇠 주입을 적용한 상판과 스프링의 3차원 모습"></canvas>
+        </article>
+      </div>
+      <input type="range" id="motion-time" min="0" max="8" step="0.001" value="3.6" aria-label="재생 시각">
+      <div class="motion-toolbar">
+        <div class="motion-time"><span id="motion-clock">3.60 / 8.00초</span><span id="motion-phase" class="motion-phase">외란 작용</span></div>
+        <p class="motion-caption">0.1배속 · 상판 움직임 60배 확대 · 숫자는 확대 전 변위</p>
+      </div>
+    </section>
 
     <section class="panel" aria-labelledby="settings-title">
       <div class="heading">
@@ -150,10 +231,13 @@
     const PID_KD = 7;
     const ACTIVE_DAMPING = 12;
     const DEFAULT_AMPLITUDE = 0.4;
+    const MOTION_START = 3.6;
+    const MOTION_RATE = 0.1;
+    const MOTION_MAGNIFICATION = 60;
     const SERIES = [
-      { mode: "off", color: "#475569", dash: "" },
-      { mode: "pid", color: "#b45309", dash: "7 4" },
-      { mode: "damping", color: "#0f766e", dash: "2 4" },
+      { mode: "off", color: "#475569", dash: "", plate: ["#a9c2d8", "#7395ad", "#547289"] },
+      { mode: "pid", color: "#b45309", dash: "7 4", plate: ["#f5c681", "#c98842", "#945721"] },
+      { mode: "damping", color: "#0f766e", dash: "2 4", plate: ["#8ee2d3", "#47a99f", "#267a75"] },
     ];
 
     function acceleration(displacement, velocity, force) {
@@ -201,6 +285,7 @@
       const disturbance = time => time < FORCING_END ? amplitude * Math.sin(angularFrequency * time) : 0;
       const accelerationTrace = new Float64Array(count);
       const energyTrace = new Float64Array(count);
+      const displacementTrace = new Float64Array(count);
       let displacement = 0;
       let velocity = 0;
       let integral = 0;
@@ -215,6 +300,7 @@
         const currentAcceleration = acceleration(displacement, velocity, force);
         accelerationTrace[index] = currentAcceleration;
         energyTrace[index] = (MASS * velocity ** 2 + SPRING * displacement ** 2) / 2;
+        displacementTrace[index] = displacement;
         if (time >= RMS_START && time < FORCING_END) {
           squaredAcceleration += currentAcceleration ** 2;
           rmsSamples += 1;
@@ -227,15 +313,163 @@
           );
         }
       }
-      return { accelerationTrace, energyTrace, rms: Math.sqrt(squaredAcceleration / rmsSamples) };
+      return { accelerationTrace, energyTrace, displacementTrace, rms: Math.sqrt(squaredAcceleration / rmsSamples) };
     }
 
     const frequencyInput = document.getElementById("frequency");
     const amplitudeInput = document.getElementById("amplitude");
     const accelerationChart = document.getElementById("acceleration-chart");
     const energyChart = document.getElementById("energy-chart");
+    const motionPlay = document.getElementById("motion-play");
+    const motionSlider = document.getElementById("motion-time");
+    const motionClock = document.getElementById("motion-clock");
+    const motionPhase = document.getElementById("motion-phase");
+    const motionViews = SERIES.map(series => ({
+      ...series,
+      canvas: document.getElementById(`rig-${series.mode}`),
+      readout: document.getElementById(`motion-${series.mode}`),
+    }));
+    const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
     let traces;
     let frame = 0;
+    let motionTime = MOTION_START;
+    let motionFrame = 0;
+    let previousMotionFrame;
+
+    function drawRig(canvas, plateColors, displacement) {
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      if (!width || !height) return;
+      const density = Math.min(window.devicePixelRatio || 1, 2);
+      const pixelWidth = Math.round(width * density);
+      const pixelHeight = Math.round(height * density);
+      if (canvas.width !== pixelWidth || canvas.height !== pixelHeight) {
+        canvas.width = pixelWidth;
+        canvas.height = pixelHeight;
+      }
+      const context = canvas.getContext("2d");
+      if (!context) return;
+      context.setTransform(density, 0, 0, density, 0, 0);
+      context.clearRect(0, 0, width, height);
+      const scale = Math.min(width / 2.5, height / 1.97);
+
+      // Project world coordinates (width, height, depth) from one shared camera.
+      function project([x, y, z]) {
+        const depthScale = scale * 5 / (5 - 0.41 * x - 0.84 * z - 0.43 * y);
+        return [
+          width / 2 + (0.89 * x - 0.45 * z) * depthScale,
+          height * 0.70 + (0.20 * x + 0.39 * z - 0.90 * y) * depthScale,
+        ];
+      }
+
+      function path(vertices, stroke, fill) {
+        context.beginPath();
+        context.moveTo(...project(vertices[0]));
+        for (const point of vertices.slice(1)) context.lineTo(...project(point));
+        if (fill) {
+          context.closePath();
+          context.fillStyle = fill;
+          context.fill();
+        }
+        context.strokeStyle = stroke;
+        context.stroke();
+      }
+
+      function cuboid(x, z, bottom, top, [topColor, frontColor, sideColor]) {
+        const topFace = [[-x, top, -z], [x, top, -z], [x, top, z], [-x, top, z]];
+        const edge = "#172b41";
+        path([topFace[1], [x, bottom, -z], [x, bottom, z], topFace[2]], edge, sideColor);
+        path([topFace[2], [x, bottom, z], [-x, bottom, z], topFace[3]], edge, frontColor);
+        path(topFace, edge, topColor);
+      }
+
+      function spring(x, z, base, top) {
+        const wire = [[x, base, z]];
+        for (let step = 0; step <= 40; step += 1) {
+          const progress = step / 40;
+          const angle = 10 * Math.PI * progress;
+          wire.push([x + 0.053 * Math.cos(angle), base + (top - base) * progress, z + 0.053 * Math.sin(angle)]);
+        }
+        wire.push([x, top, z]);
+        context.lineWidth = Math.max(1, scale / 47);
+        path(wire, "#b4cadd");
+        context.lineWidth = 1;
+      }
+
+      for (const n of [-1, -0.5, 0, 0.5, 1]) {
+        path([[n, -0.03, -0.84], [n, -0.03, 0.84]], "#35516a");
+        path([[-1.15, -0.03, n * 0.73], [1.15, -0.03, n * 0.73]], "#35516a");
+      }
+      cuboid(0.85, 0.56, 0, 0.14, ["#60788e", "#32495e", "#26394d"]);
+      const plateBottom = 0.62 + MOTION_MAGNIFICATION * displacement;
+      const supports = [[-0.59, -0.38], [0.59, -0.38], [-0.59, 0.38], [0.59, 0.38]];
+      for (const [x, z] of supports) spring(x, z, 0.15, plateBottom);
+      const plateTop = plateBottom + 0.09;
+      cuboid(0.79, 0.5, plateBottom, plateTop, plateColors);
+      for (const [x, z] of supports) {
+        context.beginPath();
+        context.arc(...project([x, plateTop, z]), Math.max(1.1, scale * 0.021), 0, 2 * Math.PI);
+        context.fillStyle = "#26394d";
+        context.fill();
+      }
+    }
+
+    function drawMotion() {
+      if (!traces) return;
+      const index = Math.min(Math.round(motionTime / STEP), Math.round(DURATION / STEP));
+      for (const { mode, canvas, readout, plate } of motionViews) {
+        const displacement = traces[mode].displacementTrace[index];
+        drawRig(canvas, plate, displacement);
+        readout.textContent = `${(1000 * displacement).toFixed(2)} mm`;
+      }
+      motionSlider.value = motionTime;
+      motionClock.textContent = `${motionTime.toFixed(2)} / ${DURATION.toFixed(2)}초`;
+      motionSlider.setAttribute("aria-valuetext", `${motionTime.toFixed(2)}초`);
+      motionPhase.textContent = index * STEP < FORCING_END ? "외란 작용" : "외란 종료";
+    }
+
+    function pauseMotion() {
+      cancelAnimationFrame(motionFrame);
+      motionFrame = 0;
+      previousMotionFrame = undefined;
+      motionPlay.textContent = "재생";
+    }
+
+    function animateMotion(timestamp) {
+      if (previousMotionFrame !== undefined) {
+        const elapsed = Math.min(timestamp - previousMotionFrame, 50);
+        motionTime = Math.min(DURATION, motionTime + elapsed / 1000 * MOTION_RATE);
+      }
+      previousMotionFrame = timestamp;
+      drawMotion();
+      if (motionTime === DURATION) pauseMotion();
+      else motionFrame = requestAnimationFrame(animateMotion);
+    }
+
+    function playMotion() {
+      if (motionTime === DURATION) motionTime = MOTION_START;
+      motionPlay.textContent = "일시정지";
+      motionFrame = requestAnimationFrame(animateMotion);
+    }
+
+    motionPlay.addEventListener("click", () => {
+      if (motionFrame) pauseMotion();
+      else playMotion();
+    });
+    document.getElementById("motion-replay").addEventListener("click", () => {
+      pauseMotion();
+      motionTime = MOTION_START;
+      drawMotion();
+      playMotion();
+    });
+    motionSlider.addEventListener("input", () => {
+      pauseMotion();
+      motionTime = motionSlider.valueAsNumber;
+      drawMotion();
+    });
+    reducedMotion.addEventListener("change", event => {
+      if (event.matches) pauseMotion();
+    });
 
     function svgElement(name, attributes, content) {
       const element = document.createElementNS("http://www.w3.org/2000/svg", name);
@@ -341,6 +575,7 @@
         }
       }
       drawResults();
+      drawMotion();
     }
 
     function queueUpdate() {
@@ -354,8 +589,12 @@
       amplitudeInput.value = DEFAULT_AMPLITUDE;
       queueUpdate();
     });
-    window.addEventListener("resize", drawResults);
+    window.addEventListener("resize", () => {
+      drawResults();
+      drawMotion();
+    });
     update();
+    if (!reducedMotion.matches) playMotion();
   </script>
 </body>
 </html>
