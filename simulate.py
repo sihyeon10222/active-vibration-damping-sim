@@ -1,6 +1,9 @@
 """Simulate the vertical motion of a table on a spring and damper."""
 
+import argparse
+import csv
 from dataclasses import dataclass
+from pathlib import Path
 
 import numpy as np
 
@@ -24,6 +27,8 @@ ACTIVE_DAMPING_NS_M = 12.0
 GRAVITY_M_S2 = 9.80665
 SENSOR_NOISE_M_S2 = 0.05
 SENSOR_SEED = 42
+MODE_LABELS = {"off": "Control off", "pid": "PID", "damping": "Damping injection"}
+MODE_COLORS = {"off": "#475569", "pid": "#b45309", "damping": "#0f766e"}
 
 
 @dataclass
@@ -121,12 +126,87 @@ def acceleration_rms(trace):
     return float(np.sqrt(np.mean(trace.acceleration_m_s2[window] ** 2)))
 
 
-if __name__ == "__main__":
-    traces = {mode: simulate(mode) for mode in MODES}
+def summarize(traces):
     baseline_rms = acceleration_rms(traces["off"])
-    print(f"Acceleration RMS ({RMS_START_S:g}–{DISTURBANCE_END_S:g} s) and energy at 5 s and 8 s")
+    summary = []
     for mode, trace in traces.items():
         rms = acceleration_rms(trace)
-        reduction = 100 * (1 - rms / baseline_rms)
         cutoff = np.searchsorted(trace.time_s, DISTURBANCE_END_S)
-        print(f"{mode}: {rms:.6f} m/s² ({reduction:.2f}% lower), {trace.energy_j[cutoff]:.9g} → {trace.energy_j[-1]:.9g} J")
+        summary.append({
+            "mode": mode,
+            "acceleration_rms_m_s2": rms,
+            "rms_reduction_vs_off_pct": 100 * (1 - rms / baseline_rms),
+            "energy_at_5_s_j": float(trace.energy_j[cutoff]),
+            "energy_at_8_s_j": float(trace.energy_j[-1]),
+            "peak_control_force_n": float(np.max(np.abs(trace.control_force_n))),
+        })
+    return summary
+
+
+def write_figure(path, traces, summary):
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    figure, axes = plt.subplots(2, 2, figsize=(10.8, 7.2), layout="constrained")
+    figure.get_layout_engine().set(w_pad=0.10, h_pad=0.12)
+    time_axis, phase_axis, energy_axis, rms_axis = axes.flat
+    figure.suptitle("Active vibration damping | 13.5 Hz tabletop model", fontsize=17, fontweight="bold")
+
+    for mode, trace in traces.items():
+        color = MODE_COLORS[mode]
+        time = trace.time_s
+        sample = (time >= 3.8) & (time <= 4.15)
+        phase = (time >= 4.8) & (time <= 5.4)
+        after = time >= DISTURBANCE_END_S
+        time_axis.plot(time[sample], trace.acceleration_m_s2[sample], color=color, label=MODE_LABELS[mode])
+        phase_axis.plot(1000 * trace.displacement_m[phase], 1000 * trace.velocity_m_s[phase], color=color)
+        energy_axis.semilogy(time[after], trace.energy_j[after], color=color)
+
+    time_axis.set(title="Acceleration during forcing", xlabel="Time (s)", ylabel="Acceleration (m/s²)")
+    time_axis.legend(loc="upper center", bbox_to_anchor=(0.5, -0.2), ncols=3, frameon=False, fontsize=9)
+    phase_axis.set(title="Phase trajectory near force switch-off", xlabel="Displacement (mm)", ylabel="Velocity (mm/s)")
+    energy_axis.set(title="Mechanical energy after 5 s", xlabel="Time (s)", ylabel="Energy (J, log scale)")
+
+    bars = rms_axis.bar(
+        ["Off", "PID", "Damping\ninjection"],
+        [row["acceleration_rms_m_s2"] for row in summary],
+        color=[MODE_COLORS[row["mode"]] for row in summary],
+        width=0.62,
+    )
+    rms_axis.bar_label(bars, fmt="%.2f", padding=4)
+    rms_axis.margins(y=0.18)
+    rms_axis.set(title="Acceleration RMS from 3 to 5 s", ylabel="RMS acceleration (m/s²)")
+
+    for axis in axes.flat:
+        axis.set_axisbelow(True)
+        axis.grid(axis="y", alpha=0.24)
+        axis.spines[["right", "top"]].set_visible(False)
+
+    figure.savefig(path, dpi=170)
+    plt.close(figure)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output-dir", type=Path, default=Path("results"), help="Directory for the PNG and CSV")
+    output_dir = parser.parse_args().output_dir
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    traces = {mode: simulate(mode) for mode in MODES}
+    summary = summarize(traces)
+    with (output_dir / "summary.csv").open("w", encoding="utf-8", newline="") as output:
+        writer = csv.DictWriter(output, fieldnames=list(summary[0]), lineterminator="\n")
+        writer.writeheader()
+        writer.writerows(summary)
+    write_figure(output_dir / "overview.png", traces, summary)
+
+    print(f"Acceleration RMS over {RMS_START_S:g}–{DISTURBANCE_END_S:g} s")
+    for row in summary:
+        print(f"{row['mode']}: {row['acceleration_rms_m_s2']:.6f} m/s² ({row['rms_reduction_vs_off_pct']:.2f}% lower)")
+    print(f"Saved overview.png and summary.csv to {output_dir}")
+
+
+if __name__ == "__main__":
+    main()
